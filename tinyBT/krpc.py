@@ -23,8 +23,8 @@ THE SOFTWARE.
 """
 
 import socket, threading, logging
-from bencode import bencode, bdecode, BTFailure
-from utils import client_version, AsyncResult, AsyncTimeout, encode_uint64, UDPSocket, ThreadManager
+from tinyBT.bencode import bencode, bdecode, BTFailure
+from tinyBT.utils import client_version, AsyncResult, AsyncTimeout, encode_uint64, UDPSocket, ThreadManager
 
 krpc_version = bytes(client_version[0] + bytearray([client_version[1], client_version[2]]))
 
@@ -168,8 +168,8 @@ if __name__ == '__main__':
 	try:
 		query1.get_result()
 	except Exception:
-		logging.exception('expected query exception')
+		logging.exception('expected query1 exception')
 	try:
 		query2.get_result()
 	except Exception:
-		logging.exception('expected query exception')
+		logging.exception('expected query2 exception')

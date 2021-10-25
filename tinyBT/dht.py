@@ -23,15 +23,15 @@ THE SOFTWARE.
 """
 
 import os, time, socket, hashlib, hmac, threading, logging, random, inspect
-from bencode import bencode, bdecode
-from utils import encode_uint32, encode_ip, encode_connection, encode_nodes, AsyncTimeout
-from utils import decode_uint32, decode_ip, decode_connection, decode_nodes, start_thread, ThreadManager
-from krpc import KRPCPeer, KRPCError
+from tinyBT.bencode import bencode, bdecode
+from tinyBT.utils import encode_uint32, encode_ip, encode_connection, encode_nodes, AsyncTimeout
+from tinyBT.utils import decode_uint32, decode_ip, decode_connection, decode_nodes, start_thread, ThreadManager
+from tinyBT.krpc import KRPCPeer, KRPCError
 
 # BEP #0042 - prefix is based on ip and last byte of the node id - 21 most significant bits must match
 #  * ip = ip address in string format eg. "127.0.0.1"
 def bep42_prefix(ip, crc32_salt, first_node_bits): # first_node_bits determines the last 3 bits
-	from crc32c import crc32c
+	from tinyBT.crc32c import crc32c
 	ip_asint = decode_uint32(encode_ip(ip))
 	value = crc32c(bytearray(encode_uint32((ip_asint & 0x030f3fff) | ((crc32_salt & 0x7) << 29))))
 	return (value & 0xfffff800) | ((first_node_bits << 8) & 0x00000700)

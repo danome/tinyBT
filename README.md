@@ -89,3 +89,9 @@ either 'started', 'stopped', 'completed' or 'empty' (for regular queries).
                   uploaded = 0, downloaded = 0, left = 0, event = 'started', num_want = -1, key = 0)
       With num_want it is possible to tell the tracker how many peers should be sent. The parameter key
       should be a unique key that is randomized by the client.
+
+Packaging
+---------
+
+The directory structure is now organized to support packaging. The necessary configuration and setup
+files have also been added to perform packaging tasks.
