@@ -23,10 +23,15 @@ THE SOFTWARE.
 """
 
 import os, time, socket, hashlib, hmac, threading, logging, random, inspect
-from tinyBT.bencode import bencode, bdecode
-from tinyBT.utils import encode_uint32, encode_ip, encode_connection, encode_nodes, AsyncTimeout
-from tinyBT.utils import decode_uint32, decode_ip, decode_connection, decode_nodes, start_thread, ThreadManager
-from tinyBT.krpc import KRPCPeer, KRPCError
+import binascii
+from   tinyBT.bencode import bencode, bdecode
+from   tinyBT.utils import encode_uint32, encode_ip, encode_connection, encode_nodes, AsyncTimeout
+from   tinyBT.utils import decode_uint32, decode_ip, decode_connection, decode_nodes, start_thread, ThreadManager
+from   tinyBT.krpc import KRPCPeer, KRPCError
+
+logging.basicConfig()
+log = logging.getLogger()
+log.setLevel(logging.INFO)
 
 # BEP #0042 - prefix is based on ip and last byte of the node id - 21 most significant bits must match
 #  * ip = ip address in string format eg. "127.0.0.1"
@@ -70,10 +75,12 @@ class DHT_Node(object):
 # Trivial node list implementation
 class DHT_Router(object):
 	def __init__(self, name, user_setup = {}):
+		self._name = name
 		setup = {'report_t': 10, 'limit_t': 30, 'limit_N': 2000, 'redeem_t': 300, 'redeem_frac': 0.05}
 		setup.update(user_setup)
-
+		self._setup = setup
 		self._log = logging.getLogger(self.__class__.__name__ + '.%s' % name)
+
 		# This is our (trivial) routing table.
 		self._nodes = {}
 		self._nodes_lock = threading.RLock()
@@ -178,11 +185,14 @@ class DHT(object):
 	def __init__(self, listen_connection, bootstrap_connection = ('router.bittorrent.com', 6881),
 			user_setup = {}, user_router = None):
 		""" Start DHT peer on given (host, port) and bootstrap connection to the DHT """
-		setup = {'discover_t': 180, 'check_t': 30, 'check_N': 10}
+		setup = {'discover_t': 180, 'check_t': 30, 'check_N': 10, 'last_ping': 900, 'timeout': 5}
 		setup.update(user_setup)
+		self._setup = setup
+
 		self._log = logging.getLogger(self.__class__.__name__ + '.%s.%d' % listen_connection)
 		self._log.info('Starting DHT node with bootstrap connection %s:%d' % bootstrap_connection)
 		listen_connection = (socket.gethostbyname(listen_connection[0]), listen_connection[1])
+		self._connection = listen_connection
 		# Generate key for token generation
 		self._token_key = os.urandom(20)
 		# Start KRPC server process and Routing table
@@ -211,7 +221,7 @@ class DHT(object):
 		self._threads = ThreadManager(self._log.getChild('maintainance'))
 
 		# Periodically ping nodes in the routing table
-		def _check_nodes(N, last_ping = 15 * 60, timeout = 5):
+		def _check_nodes(N, last_ping, timeout):
 			def get_unpinged(n):
 				return time.time() - n.last_ping > last_ping
 			check_nodes = list(self._nodes.get_nodes(N, expression = get_unpinged))
@@ -227,7 +237,7 @@ class DHT(object):
 				result = self._eval_dht_response(node, async_result, timeout = max(0, t_end - time.time()))
 				if result and (node.id != result.get(b'id')): # remove nodes with changing identities
 					self._nodes.remove_node(node, force = True)
-		self._threads.start_continuous_thread(_check_nodes, thread_interval = setup['check_t'], N = setup['check_N'])
+		self._threads.start_continuous_thread(_check_nodes, thread_interval = setup['check_t'], N = setup['check_N'], last_ping = setup['last_ping'], timeout = setup['timeout'])
 
 		# Try to discover a random node to populate routing table
 		def _discover_nodes():
@@ -436,51 +446,90 @@ class DHT(object):
 	_reply_handler[b'announce_peer'] = _announce_peer
 
 
-if __name__ == '__main__':
-	logging.basicConfig()
-	log = logging.getLogger()
-	log.setLevel(logging.INFO)
-	logging.getLogger('DHT').setLevel(logging.INFO)
+dhts = dict()
+bootstrap_connection = ('localhost', 10000)
+# bootstrap_connection = ('router.bittorrent.com', 6881)
+
+uih1510 = binascii.unhexlify('ae3fa25614b753118931373f8feae64f3c75f5cd') # Ubuntu 15.10 info hash
+uih2004 = binascii.unhexlify('1c137edac5a3e214cac17c1f7bffca3516143538') # Ubuntu 20.04 info hash
+uih2110 = binascii.unhexlify('2cbc3e5cd85e9ca69e8da0845047adfea8bad4c1') # Ubuntu 21.10 info hash
+#import hashlib
+#info_hash = hashlib.sha1(b"Nobody inspects the spammish repetition").hexdigest()
+
+terminate_infinite = False
+def infinite_sequence():
+	num = 1
+	while True:
+		yield num
+		num += 1
+
+dht_id_root=10000
+next_dht_id=infinite_sequence()
+def get_next_id():
+	return next(next_dht_id)
+
+def add_dht(dht_id=None, user_setup={}):
+	global dhts
+	setup = {} #{'discover_t': 180, 'check_t': 30, 'check_N': 10}
+	setup.update(user_setup)
+	if dht_id is None: dht_id = dht_id_root + get_next_id()
+	log.critical('add_dht: %d, setup: %s' % (dht_id, setup))
+	router = DHT_Router('ttn' + str(dht_id), setup)
+	dhts.update({dht_id: DHT(('localhost', dht_id), bootstrap_connection, setup, router)})
+	return dht_id
+
+def get_peers(dht_id, info_hash):
+	peers = {}
+	for idx, peer in enumerate(dhts[dht_id].dht_get_peers(info_hash)):
+		peers.update({dht_id: peer})
+	return peers
+
+def add_peer(dht_id, info_hash):
+	for idx, peer in enumerate(dhts[dht_id].dht_get_peers(info_hash)):
+		log.critical('add_peer-get: %s -> info_hash result #%d: %r' % (dht_id, idx, peer))
+	for idx, peer in enumerate(dhts[dht_id].dht_announce_peer(info_hash)):
+		log.critical('add_peer-announce: %s -> info_hash result #%d' % (dht_id, idx))
+
+def peer_info():
+	for [node_id, dht] in dhts.items():
+		print('node :%d, conn: %s, infohashes: %s' % \
+		      (node_id, dht._node.connection, dht._node.values))
+
+def remove_dht(dht_id):
+	global dhts
+	dhts[dht_id].shutdown()
+	dhts[dht_id]._nodes.shutdown()
+	dhts.pop(dht_id)
+
+def stop_dht():
+	global dhts, terminate_infinite
+	terminate_infinite = True
+	for dht_id, _ in list(dhts.items()):
+		remove_dht(dht_id)
+
+def start_dht():
+	global dhts
+	#
+	setup = {}
+
+	# Create a DHT swarm
+	log.critical('creating swarm')
+	d0=add_dht(dht_id_root)
+	d1=add_dht()
+	d2=add_dht()
+	add_peer(d0, uih1510)
+	add_peer(d1, uih2004)
+
+	#	for dht in dht_list: dht.shutdown()
+
+def main():
+	logging.getLogger('DHT').setLevel(logging.DEBUG)
 	logging.getLogger('DHT_Router').setLevel(logging.ERROR)
 	logging.getLogger('KRPCPeer').setLevel(logging.ERROR)
 	logging.getLogger('KRPCPeer.local').setLevel(logging.ERROR)
 	logging.getLogger('KRPCPeer.remote').setLevel(logging.ERROR)
+	start_dht()
 
-	# Create a DHT swarm
-	setup = {}
-	bootstrap_connection = ('localhost', 10001)
-#	bootstrap_connection = ('router.bittorrent.com', 6881)
-	dht1 = DHT(('0.0.0.0', 10001), bootstrap_connection, setup)
-	dht2 = DHT(('0.0.0.0', 10002), bootstrap_connection, setup)
-	dht3 = DHT(('0.0.0.0', 10003), bootstrap_connection, setup)
-	dht4 = DHT(('0.0.0.0', 10004), ('localhost', 10003), setup)
-	dht5 = DHT(('0.0.0.0', 10005), ('localhost', 10003), setup)
-	dht6 = DHT(('0.0.0.0', 10006), ('localhost', 10005), setup)
 
-	log.critical('starting "ping" test')
-	log.critical('ping: dht1 -> bootstrap = %r' % dht1.dht_ping(bootstrap_connection))
-	log.critical('ping: dht6 -> bootstrap = %r' % dht6.dht_ping(bootstrap_connection))
-
-	log.critical('starting "find_node" test')
-	for idx, node in enumerate(dht3.dht_find_node(dht1._node.id)):
-		log.critical('find_node: dht3 -> id(dht1) result #%d: %s:%d' % (idx, node[0], node[1]))
-		if idx > 10:
-			break
-
-	import binascii
-	info_hash = binascii.unhexlify('ae3fa25614b753118931373f8feae64f3c75f5cd') # Ubuntu 15.10 info hash
-
-	log.critical('starting "get_peers" test')
-	for idx, peer in enumerate(dht5.dht_get_peers(info_hash)):
-		log.critical('get_peers: dht5 -> info_hash result #%d: %r' % (idx, peer))
-
-	log.critical('starting "announce_peer" test')
-	for idx, async_result in enumerate(dht5.dht_announce_peer(info_hash)):
-		log.critical('announce_peer: dht2 -> close_nodes(info_hash) #%d: %r' % (idx, async_result.get_result(1)))
-
-	log.critical('starting "get_peers" test')
-	for idx, peer in enumerate(dht1.dht_get_peers(info_hash)):
-		log.critical('get_peers: dht1 -> info_hash result #%d: %r' % (idx, peer))
-
-	for dht in [dht1, dht2, dht3, dht4, dht5, dht6]:
-		dht.shutdown()
+if __name__ == '__main__':
+	main()
