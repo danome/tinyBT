@@ -184,18 +184,19 @@ class DHT(object):
 	def __init__(self, listen_connection, bootstrap_connection = ('router.bittorrent.com', 6881),
 			user_setup = {}, user_router = None):
 		""" Start DHT peer on given (host, port) and bootstrap connection to the DHT """
-		setup = {'discover_t': 180, 'check_t': 30, 'check_N': 10, 'last_ping': 900, 'timeout': 5}
+		setup = {'discover_t': 180, 'check_t': 30, 'check_N': 10, 'last_ping': 900,
+			 'ping_timeout': 5, 'cleanup_timeout': 60, 'cleanup_interval': 10}
 		setup.update(user_setup)
 		self._setup = setup
 
 		self._log = logging.getLogger(self.__class__.__name__ + '.%s.%d' % listen_connection)
-		self._log.info('Starting DHT node with bootstrap connection %s:%d' % bootstrap_connection)
+		self._log.info('Starting DHT node %s with bootstrap connection %s' % (listen_connection, bootstrap_connection))
 		listen_connection = (socket.gethostbyname(listen_connection[0]), listen_connection[1])
 		self._connection = listen_connection
 		# Generate key for token generation
 		self._token_key = os.urandom(20)
 		# Start KRPC server process and Routing table
-		self._krpc = KRPCPeer(listen_connection, self._handle_query)
+		self._krpc = KRPCPeer(listen_connection, self._handle_query, setup['cleanup_timeout'], setup['cleanup_interval'])
 		if not user_router:
 			user_router = DHT_Router('%s.%d' % listen_connection, setup)
 		self._nodes = user_router
@@ -219,7 +220,7 @@ class DHT(object):
 		# Start maintainance threads
 		self._threads = ThreadManager(self._log.getChild('maintainance'))
 
-		# Periodically ping nodes in the routing table
+# Periodically ping nodes in the routing table
 		def _check_nodes(N, last_ping, timeout):
 			def get_unpinged(n):
 				return time.time() - n.last_ping > last_ping
@@ -236,7 +237,7 @@ class DHT(object):
 				result = self._eval_dht_response(node, async_result, timeout = max(0, t_end - time.time()))
 				if result and (node.id != result.get(b'id')): # remove nodes with changing identities
 					self._nodes.remove_node(node, force = True)
-		self._threads.start_continuous_thread(_check_nodes, thread_interval = setup['check_t'], N = setup['check_N'], last_ping = setup['last_ping'], timeout = setup['timeout'])
+		self._threads.start_continuous_thread(_check_nodes, thread_interval = setup['check_t'], N = setup['check_N'], last_ping = setup['last_ping'], timeout = setup['ping_timeout'])
 
 		# Try to discover a random node to populate routing table
 		def _discover_nodes():
@@ -351,7 +352,7 @@ class DHT(object):
 	#############################################################################
 	# Each KRPC method XYZ is implemented using 3 functions:
 	#   dht_XYZ(...) - wrapper to process the result of the KRPC function
-	#       XYZ(...) - direct call of the KRPC method - returns AsyncResult
+	#	XYZ(...) - direct call of the KRPC method - returns AsyncResult
 	#      _XYZ(...) - handler to process incoming KRPC calls
 
 	# ping methods
@@ -441,6 +442,7 @@ class DHT(object):
 			if implied_port:
 				port = send_krpc_reply.connection[1]
 			self._node.values.setdefault(info_hash, []).append((send_krpc_reply.connection[0], port))
+			self._node.values[info_hash]=list(set(self._node.values[info_hash]))
 			send_krpc_reply(id = self._node.id)
 	_reply_handler[b'announce_peer'] = _announce_peer
 
@@ -452,24 +454,32 @@ bootstrap_connection = ('localhost', 10000)
 uih1510 = binascii.unhexlify('ae3fa25614b753118931373f8feae64f3c75f5cd') # Ubuntu 15.10 info hash
 uih2004 = binascii.unhexlify('1c137edac5a3e214cac17c1f7bffca3516143538') # Ubuntu 20.04 info hash
 uih2110 = binascii.unhexlify('2cbc3e5cd85e9ca69e8da0845047adfea8bad4c1') # Ubuntu 21.10 info hash
+infohash_list=[uih1510, uih2004, uih2110]
+
 #import hashlib
 #info_hash = hashlib.sha1(b"Nobody inspects the spammish repetition").hexdigest()
 
-terminate_infinite = False
+_infinite_on = False
 def infinite_sequence():
+	global _infinite_on
+	_infinite_on = False
 	num = 1
-	while True:
+	while not _infinite_on:
 		yield num
 		num += 1
 
+def terminate_infinite():
+	global _infinite_on
+	_infinite_on=True
+
 dht_id_root=10000
-next_dht_id=infinite_sequence()
+next_dht_id=None
 def get_next_id():
 	return next(next_dht_id)
 
 def add_dht(dht_id=None, user_setup={}):
 	global dhts
-	setup = {} #{'discover_t': 180, 'check_t': 30, 'check_N': 10}
+	setup = {}
 	setup.update(user_setup)
 	if dht_id is None: dht_id = dht_id_root + get_next_id()
 	log.critical('add_dht: %d, setup: %s' % (dht_id, setup))
@@ -478,9 +488,9 @@ def add_dht(dht_id=None, user_setup={}):
 	return dht_id
 
 def get_peers(dht_id, info_hash):
-	peers = {}
+	peers = []
 	for idx, peer in enumerate(dhts[dht_id].dht_get_peers(info_hash)):
-		peers.update({dht_id: peer})
+		peers.append(peer)
 	return peers
 
 def add_peer(dht_id, info_hash):
@@ -489,10 +499,25 @@ def add_peer(dht_id, info_hash):
 	for idx, peer in enumerate(dhts[dht_id].dht_announce_peer(info_hash)):
 		log.critical('add_peer-announce: %s -> info_hash result #%d' % (dht_id, idx))
 
-def peer_info():
+def peer_info(nid=None):
+	if nid is not None:
+		return {dhts[nid]._node.connection: dhts[nid]._node.values}
+	peerlist={}
 	for [node_id, dht] in dhts.items():
-		print('node :%d, conn: %s, infohashes: %s' % \
-		      (node_id, dht._node.connection, dht._node.values))
+		peerlist.update({node_id: {dht._node.connection: dht._node.values}})
+	return peerlist
+
+def hash_info():
+	infolist={}
+	for [node_id, dht] in dhts.items():
+		for infohash, routes in dht._node.values.items():
+                        s=set(routes)
+                        infolist.setdefault(infohash, [])
+                        ns=set(infolist[infohash])
+                        infolist.update({infohash: s.union(ns)})
+	return infolist
+
+
 
 def remove_dht(dht_id):
 	global dhts
@@ -501,33 +526,62 @@ def remove_dht(dht_id):
 	dhts.pop(dht_id)
 
 def stop_dht():
-	global dhts, terminate_infinite
-	terminate_infinite = True
+	global dhts
+	terminate_infinite()
 	for dht_id, _ in list(dhts.items()):
 		remove_dht(dht_id)
 
-def start_dht():
+# setup parameters
+#  router
+#   report_t	 [_show_status] thread_interval to report status
+#   limit_t	 [_limit] thread_interval to limit number of active nodes
+#   limit_N	 [_limit] maxN active nodes
+#   redeem_t	 [_redeem_connections] thread_interval to redeem bad connections
+#   redeem_frac	 [_redeem_connections] fractional number of bad connections to redeem
+#  dht
+#   cleanup_timeout	[_init] krpcpeer time to wait for cleanup to complete
+#   cleanup_interval	[_init] krpcpeer thread_interval to clean up ?
+#   check_t	 [_check_nodes] thread_interval to periodically ping nodes in routing table
+#   check_N	 [_check_nodes] how many nodes to check at once
+#   last_ping	 [_check_nodes] how long to wait since last check for node
+#   ping_timeout [_check_nodes] how long to wait for ping response
+#   discover_t	 [_discover_nodes] thread_interval random attempt to discover nodes (futile?)
+
+def start_dht(setup={}):
 	global dhts
 	#
-	setup = {}
-
 	# Create a DHT swarm
 	log.critical('creating swarm')
-	d0=add_dht(dht_id_root)
-	d1=add_dht()
-	d2=add_dht()
-	add_peer(d0, uih1510)
-	add_peer(d1, uih2004)
+	nodes=[]
+	infohashes = []
+	node_count=5
+	hashes_count=10
+	for i in range(node_count):
+		nodes.append(add_dht(None, setup))
+	for i in range(hashes_count):
+		peer=nodes[random.randint(0,node_count-1)]
+		random.shuffle(infohash_list)
+		infohash=infohash_list[0]
+		add_peer(peer, infohash)
+	return nodes, hashes_count
 
 	#	for dht in dht_list: dht.shutdown()
 
+default_setup = {'check_t': 3, 'check_N': 5, 'report_t': 30, 'redeem_t': 1200,
+		 'limit_t': 300, 'limit_N': 4, 'last_ping': 10, 'ping_timeout': 2}
+	#{'discover_t': 180, 'check_t': 30, 'check_N': 10, 'cleanup_timeout': 60, 'cleanup_interval: 10}
+	#{'report_t': 10, 'limit_t': 30, 'limit_N': 2000, 'redeem_t': 300, 'redeem_frac': 0.05}
+
 def main():
-	logging.getLogger('DHT').setLevel(logging.DEBUG)
+	global next_dht_id
+	logging.getLogger('DHT').setLevel(logging.INFO)
 	logging.getLogger('DHT_Router').setLevel(logging.ERROR)
 	logging.getLogger('KRPCPeer').setLevel(logging.ERROR)
 	logging.getLogger('KRPCPeer.local').setLevel(logging.ERROR)
 	logging.getLogger('KRPCPeer.remote').setLevel(logging.ERROR)
-	start_dht()
+	root=add_dht(dht_id_root, default_setup)
+	next_dht_id=infinite_sequence()
+	start_dht(default_setup)
 
 
 if __name__ == '__main__':
