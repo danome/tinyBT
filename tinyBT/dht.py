@@ -71,7 +71,6 @@ class DHT_Node(object):
 		return 'id:%s con:%15s:%-5d v:%20s c:%5s last:%.2f' % (hex(self.id_cmp), self.connection[0], self.connection[1],
 			repr(self.version), valid_id(self.id, self.connection), time.time() - self.last_ping)
 
-
 # Trivial node list implementation
 class DHT_Router(object):
 	def __init__(self, name, user_setup = {}):
@@ -94,7 +93,7 @@ class DHT_Router(object):
 		# - Report status of routing table
 		def _show_status():
 			with self._nodes_lock:
-				self._log.info('Routing table contains %d ids with %d nodes (%d bad, %s protected)' %\
+				self._log.debug('Routing table contains %d ids with %d nodes (%d bad, %s protected)' %\
 					(len(self._nodes), sum(map(len, self._nodes.values())),
 					len(self._connections_bad), len(self._nodes_protected)))
 				if self._log.isEnabledFor(logging.DEBUG):

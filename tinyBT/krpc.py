@@ -70,8 +70,8 @@ class KRPCPeer(object):
 			req = {b'y': b'q', b't': local_transaction, b'v': krpc_version, b'q': method, b'a': kwargs}
 			result = AsyncResult(source = (method, kwargs, target_connection))
 			if not self._threads.shutdown_in_progress():
-				if self._log_local.isEnabledFor(logging.INFO):
-					self._log_local.info('KRPC request to %r:\n\t%r' % (target_connection, req))
+				if self._log_local.isEnabledFor(logging.DEBUG):
+					self._log_local.debug('KRPC request to %r:\n\t%r' % (target_connection, req))
 				self._transaction[local_transaction] = result
 				self._sock.sendto(bencode(req), target_connection)
 			else:
@@ -93,8 +93,8 @@ class KRPCPeer(object):
 		# Remove transactions older than 1min
 		with self._transaction_lock:
 			timeout_transactions = [t for t, ar in self._transaction.items() if ar.get_age() > timeout]
-			if self._log.isEnabledFor(logging.DEBUG):
-				self._log.debug('Transactions: %d id=%d timeout=%d' % (len(self._transaction), self._transaction_id, len(timeout_transactions)))
+			if self._log.isEnabledFor(logging.INFO):
+				self._log.info('Transactions: %d id=%d timeout=%d' % (len(self._transaction), self._transaction_id, len(timeout_transactions)))
 			for t in timeout_transactions:
 				self._transaction.pop(t).set_result(AsyncTimeout('Transaction %r: timeout' % t))
 
@@ -124,16 +124,16 @@ class KRPCPeer(object):
 						else:
 							rec = KRPCError('Error while processing transaction %r:\n\t%r' % (t, rec))
 				else:
-					if self._log_local.isEnabledFor(logging.INFO):
-						self._log_local.info('KRPC answer from %r:\n\t%r' % (source_connection, rec))
+					if self._log_local.isEnabledFor(logging.DEBUG):
+						self._log_local.debug('KRPC answer from %r:\n\t%r' % (source_connection, rec))
 				with self._transaction_lock:
 					if self._transaction.get(t):
 						self._transaction.pop(t).set_result(rec, source = source_connection)
-					elif self._log_local.isEnabledFor(logging.DEBUG):
-						self._log_local.debug('Received response from %r without associated transaction:\n%r' % (source_connection, rec))
+					elif self._log_local.isEnabledFor(logging.ERROR):
+						self._log_local.error('Received response from %r without associated transaction:\n%r' % (source_connection, rec))
 			elif rec[b'y'] == b'q':
-				if self._log_remote.isEnabledFor(logging.INFO):
-					self._log_remote.info('KRPC request from %r:\n\t%r' % (source_connection, rec))
+				if self._log_remote.isEnabledFor(logging.DEBUG):
+					self._log_remote.debug('KRPC request from %r:\n\t%r' % (source_connection, rec))
 				def custom_send_krpc_response(message, top_level_message = {}):
 					return self._send_krpc_response(source_connection, rec.pop(b't'), message, top_level_message, self._log_remote)
 				self._handle_query(custom_send_krpc_response, rec, source_connection)
@@ -149,8 +149,8 @@ class KRPCPeer(object):
 			resp.update(top_level_message)
 			if log == None:
 				log = self._log_local
-			if log.isEnabledFor(logging.INFO):
-				log.info('KRPC response to %r:\n\t%r' % (source_connection, resp))
+			if log.isEnabledFor(logging.DEBUG):
+				log.debug('KRPC response to %r:\n\t%r' % (source_connection, resp))
 			self._sock.sendto(bencode(resp), source_connection)
 
 
