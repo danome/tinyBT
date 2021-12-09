@@ -446,42 +446,45 @@ class DHT(object):
 			send_krpc_reply(id = self._node.id)
 	_reply_handler[b'announce_peer'] = _announce_peer
 
+#####
 
 dhts = dict()
-bootstrap_connection = ('localhost', 10000)
+dht_id_root=10000
+bootstrap_connection = ('localhost', dht_id_root)
 # bootstrap_connection = ('router.bittorrent.com', 6881)
 
 uih1510 = binascii.unhexlify('ae3fa25614b753118931373f8feae64f3c75f5cd') # Ubuntu 15.10 info hash
 uih2004 = binascii.unhexlify('1c137edac5a3e214cac17c1f7bffca3516143538') # Ubuntu 20.04 info hash
 uih2110 = binascii.unhexlify('2cbc3e5cd85e9ca69e8da0845047adfea8bad4c1') # Ubuntu 21.10 info hash
 infohash_list=[uih1510, uih2004, uih2110]
-
 #import hashlib
 #info_hash = hashlib.sha1(b"Nobody inspects the spammish repetition").hexdigest()
 
 _infinite_on = False
-def infinite_sequence():
+def infinite_sequence(start=0):
 	global _infinite_on
 	_infinite_on = False
-	num = 1
+	num = start
 	while not _infinite_on:
 		yield num
 		num += 1
+		if num > start + 10000: num = start + 1
 
 def terminate_infinite():
 	global _infinite_on
 	_infinite_on=True
 
-dht_id_root=10000
-next_dht_id=None
+next_dht_id=infinite_sequence(dht_id_root)
 def get_next_id():
 	return next(next_dht_id)
+
+#####
 
 def add_dht(dht_id=None, user_setup={}):
 	global dhts
 	setup = {}
 	setup.update(user_setup)
-	if dht_id is None: dht_id = dht_id_root + get_next_id()
+	if dht_id is None: dht_id = get_next_id()
 	log.critical('add_dht: %d, setup: %s' % (dht_id, setup))
 	router = DHT_Router('ttn' + str(dht_id), setup)
 	dhts.update({dht_id: DHT(('localhost', dht_id), bootstrap_connection, setup, router)})
@@ -499,25 +502,23 @@ def add_peer(dht_id, info_hash):
 	for idx, peer in enumerate(dhts[dht_id].dht_announce_peer(info_hash)):
 		log.critical('add_peer-announce: %s -> info_hash result #%d' % (dht_id, idx))
 
-def peer_info(nid=None):
-	if nid is not None:
-		return {dhts[nid]._node.connection: dhts[nid]._node.values}
+def peer_info(dht_id=None):
+	if dht_id is not None:
+		return {dhts[dht_id]._node.connection: dhts[nid]._node.values}
 	peerlist={}
-	for [node_id, dht] in dhts.items():
-		peerlist.update({node_id: {dht._node.connection: dht._node.values}})
+	for [dht_id, dht] in dhts.items():
+		peerlist.update({dht_id: {dht._node.connection: dht._node.values}})
 	return peerlist
 
 def hash_info():
 	infolist={}
-	for [node_id, dht] in dhts.items():
+	for [dht_id, dht] in dhts.items():
 		for infohash, routes in dht._node.values.items():
                         s=set(routes)
                         infolist.setdefault(infohash, [])
                         ns=set(infolist[infohash])
                         infolist.update({infohash: s.union(ns)})
 	return infolist
-
-
 
 def remove_dht(dht_id):
 	global dhts
@@ -572,15 +573,18 @@ default_setup = {'check_t': 3, 'check_N': 5, 'report_t': 30, 'redeem_t': 1200,
 	#{'discover_t': 180, 'check_t': 30, 'check_N': 10, 'cleanup_timeout': 60, 'cleanup_interval: 10}
 	#{'report_t': 10, 'limit_t': 30, 'limit_N': 2000, 'redeem_t': 300, 'redeem_frac': 0.05}
 
-def main():
+def init_dht():
 	global next_dht_id
+	next_dht_id=infinite_sequence(dht_id_root)
 	logging.getLogger('DHT').setLevel(logging.INFO)
 	logging.getLogger('DHT_Router').setLevel(logging.ERROR)
 	logging.getLogger('KRPCPeer').setLevel(logging.ERROR)
 	logging.getLogger('KRPCPeer.local').setLevel(logging.ERROR)
 	logging.getLogger('KRPCPeer.remote').setLevel(logging.ERROR)
-	root=add_dht(dht_id_root, default_setup)
-	next_dht_id=infinite_sequence()
+
+def main():
+	init_dht()
+	root=add_dht(dht_id_root, default_setup)  # create root dht
 	start_dht(default_setup)
 
 

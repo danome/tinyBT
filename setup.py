@@ -3,7 +3,7 @@
 from setuptools import setup
 
 setup(name='tinyBT',
-      version='0.0.1',
+      version='0.0.2',
       description='Simple BitTorrent DHT',
       author='Fred Stober, Dan Maltbie (Packaging)',
       author_email='dmaltbie@daloma.org',
