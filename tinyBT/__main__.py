@@ -1,3 +1,3 @@
-from dht import main
+from tinyBT.dht import main
 
 main()

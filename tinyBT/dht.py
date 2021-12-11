@@ -450,7 +450,8 @@ class DHT(object):
 
 dhts = dict()
 dht_id_root=10000
-bootstrap_connection = ('localhost', dht_id_root)
+local_ip = socket.gethostbyname(socket.gethostname())
+bootstrap_connection = (local_ip, dht_id_root)
 # bootstrap_connection = ('router.bittorrent.com', 6881)
 
 uih1510 = binascii.unhexlify('ae3fa25614b753118931373f8feae64f3c75f5cd') # Ubuntu 15.10 info hash
@@ -464,7 +465,7 @@ _infinite_on = False
 def infinite_sequence(start=0):
 	global _infinite_on
 	_infinite_on = False
-	num = start
+	num = start + 1
 	while not _infinite_on:
 		yield num
 		num += 1
@@ -487,7 +488,7 @@ def add_dht(dht_id=None, user_setup={}):
 	if dht_id is None: dht_id = get_next_id()
 	log.critical('add_dht: %d, setup: %s' % (dht_id, setup))
 	router = DHT_Router('ttn' + str(dht_id), setup)
-	dhts.update({dht_id: DHT(('localhost', dht_id), bootstrap_connection, setup, router)})
+	dhts.update({dht_id: DHT((local_ip, dht_id), bootstrap_connection, setup, router)})
 	return dht_id
 
 def get_peers(dht_id, info_hash):
@@ -548,7 +549,7 @@ def stop_dht():
 #   ping_timeout [_check_nodes] how long to wait for ping response
 #   discover_t	 [_discover_nodes] thread_interval random attempt to discover nodes (futile?)
 
-def start_dht(setup={}):
+def test_dht(setup={}):
 	global dhts
 	#
 	# Create a DHT swarm
@@ -585,7 +586,7 @@ def init_dht():
 def main():
 	init_dht()
 	root=add_dht(dht_id_root, default_setup)  # create root dht
-	start_dht(default_setup)
+	# test_dht(default_setup)
 
 
 if __name__ == '__main__':
