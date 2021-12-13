@@ -6,5 +6,6 @@ setup(name='tinyBT',
       description='Simple BitTorrent DHT',
       author='Fred Stober, Dan Maltbie (Packaging)',
       author_email='dmaltbie@daloma.org',
-      packages=['tinyBT'],
+#      setup_requires=['setup.cfg'],
+#      setup_cfg=True
      )
