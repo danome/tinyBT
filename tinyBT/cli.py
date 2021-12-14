@@ -1,7 +1,7 @@
 """
 TTN DHT_Router.
 
-Usage: ttnrouter.py [--ip=127.0.0.1]
+Usage: ttnrouter.py [--ip=<ip>]
 
 Options:
   -h --help     Show this screen.
@@ -16,12 +16,11 @@ from _version import __version__
 
 parsed_args = {}
 
-from docopt import docopt
-
-def parse(args={}):
+def parse(args=None):
     arguments = docopt(__doc__, argv=args, version=__version__)
     parsed_args = arguments.copy()
     return arguments
 
 if __name__ == '__main__':
-    print(parse(['--version']))
+    print(sys.argv)
+    print(parse())

@@ -564,22 +564,21 @@ def test_dht(setup={}):
 	node_count=5
 	hashes_count=10
 	for i in range(node_count):
-		nodes.append(add_dht(None, setup))
+		nodes.append(add_dht(None, None, setup))
 	for i in range(hashes_count):
 		peer=nodes[random.randint(0,node_count-1)]
 		random.shuffle(infohash_list)
 		infohash=infohash_list[0]
 		add_peer(peer, infohash)
+	# for dht in dht_list: dht.shutdown()
 	return nodes, hashes_count
-
-	#	for dht in dht_list: dht.shutdown()
 
 default_setup = {'check_t': 3, 'check_N': 5, 'report_t': 30, 'redeem_t': 1200,
 		 'limit_t': 300, 'limit_N': 4, 'last_ping': 10, 'ping_timeout': 2}
 	#{'discover_t': 180, 'check_t': 30, 'check_N': 10, 'cleanup_timeout': 60, 'cleanup_interval: 10}
 	#{'report_t': 10, 'limit_t': 30, 'limit_N': 2000, 'redeem_t': 300, 'redeem_frac': 0.05}
 
-def init_dht():
+def init_dht(options):
 	global next_dht_id
 	next_dht_id=infinite_sequence(dht_id_root)
 	logging.getLogger('DHT').setLevel(logging.INFO)
@@ -588,11 +587,17 @@ def init_dht():
 	logging.getLogger('KRPCPeer.local').setLevel(logging.ERROR)
 	logging.getLogger('KRPCPeer.remote').setLevel(logging.ERROR)
 
-def main():
-	init_dht()
-	root=add_dht(dht_id_root, default_setup)  # create root dht
-	# test_dht(default_setup)
-
+def main(test=False, vargs=None):
+	options = parse(vargs)
+	#print(options)
+	if options['--ip']:
+		global local_ip, bootstrap_connection
+		local_ip = options['--ip']
+		bootstrap_connection = (local_ip, dht_id_root)
+	init_dht(options)
+	root=add_dht(dht_id_root, options['--ip'], default_setup) # create root dht
+	if test: test_dht(default_setup)
 
 if __name__ == '__main__':
-	main()
+	#print(sys.argv)
+	main(test=True) #, vargs=['--ip', '172.17.0.1']
