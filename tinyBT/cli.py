@@ -8,11 +8,15 @@ Options:
   --version     Show version.
   --ip=<ip>     ip address to use for router address. [default: 127.0.0.1]
 """
-
-import os, sys
-sys.path.append(os.getcwd() + '/tinyBT')
-
-from _version import __version__
+import sys
+from docopt import docopt
+try:
+    from _version import __version__
+except:
+    # for development purposes add module level to path
+    import os, sys
+    sys.path.append(os.getcwd() + '/tinyBT')
+    from _version import __version__
 
 parsed_args = {}
 

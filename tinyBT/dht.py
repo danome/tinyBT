@@ -22,17 +22,24 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-import os, time, socket, hashlib, hmac, threading, logging, random, inspect
+import os, sys, time, socket, hashlib, hmac, threading, logging, random, inspect
 import binascii
 
-# ZZZ for development purposes add to path
-import os, sys
-sys.path.append(os.getcwd() + '/tinyBT')
-from   bencode import bencode, bdecode
-from   utils   import encode_uint32, encode_ip, encode_connection, encode_nodes, AsyncTimeout
-from   utils   import decode_uint32, decode_ip, decode_connection, decode_nodes, start_thread, ThreadManager
-from   krpc    import KRPCPeer, KRPCError
-from   cli     import parse
+try:
+        from   bencode import bencode, bdecode
+        from   utils   import encode_uint32, encode_ip, encode_connection, encode_nodes, AsyncTimeout
+        from   utils   import decode_uint32, decode_ip, decode_connection, decode_nodes, start_thread, ThreadManager
+        from   krpc    import KRPCPeer, KRPCError
+        from   cli     import parse
+except:
+        # ZZZ for development purposes add to path to module level
+        import os, sys
+        sys.path.append(os.getcwd() + '/tinyBT')
+        from   bencode import bencode, bdecode
+        from   utils   import encode_uint32, encode_ip, encode_connection, encode_nodes, AsyncTimeout
+        from   utils   import decode_uint32, decode_ip, decode_connection, decode_nodes, start_thread, ThreadManager
+        from   krpc    import KRPCPeer, KRPCError
+        from   cli     import parse
 
 logging.basicConfig()
 log = logging.getLogger()
@@ -57,6 +64,98 @@ def decode_id(node_id):
 	except:
 		return int(node_id.encode('hex'), 16)
 
+#####
+
+dhts = dict()
+dht_id_root=10000
+local_ip = socket.gethostbyname(socket.gethostname())
+bootstrap_connection = (local_ip, dht_id_root)
+# bootstrap_connection = ('router.bittorrent.com', 6881)
+
+uih1510 = binascii.unhexlify('ae3fa25614b753118931373f8feae64f3c75f5cd') # Ubuntu 15.10 info hash
+uih2004 = binascii.unhexlify('1c137edac5a3e214cac17c1f7bffca3516143538') # Ubuntu 20.04 info hash
+uih2110 = binascii.unhexlify('2cbc3e5cd85e9ca69e8da0845047adfea8bad4c1') # Ubuntu 21.10 info hash
+infohash_list=[uih1510, uih2004, uih2110]
+#import hashlib
+#info_hash = hashlib.sha1(b"Nobody inspects the spammish repetition").hexdigest()
+
+_infinite_on = False
+def infinite_sequence(start=0):
+	global _infinite_on
+	_infinite_on = False
+	num = start + 1
+	while not _infinite_on:
+		yield num
+		num += 1
+		if num > start + 10000: num = start + 1
+
+def terminate_infinite():
+	global _infinite_on
+	_infinite_on=True
+
+next_dht_id=infinite_sequence(dht_id_root)
+def get_next_id():
+	return next(next_dht_id)
+
+#
+# public interface for dht module
+#
+def add_dht(dht_id=None, ip=local_ip, user_setup={}):
+	global dhts
+	setup = {}
+	setup.update(user_setup)
+	dht_id = get_next_id() if dht_id is None else dht_id
+	ip = local_ip if ip is None else ip
+	log.critical('add_dht: %d, ip: %s, setup: %s' % (dht_id, ip, setup))
+	router = DHT_Router('ttn' + str(dht_id), setup)
+	dhts.update({dht_id: DHT((ip, dht_id), bootstrap_connection, setup, router)})
+	return dht_id
+
+def get_peers(dht_id, info_hash):
+	peers = []
+	for idx, peer in enumerate(dhts[dht_id].dht_get_peers(info_hash)):
+		peers.append(peer)
+	return peers
+
+def add_peer(dht_id, info_hash):
+	for idx, peer in enumerate(dhts[dht_id].dht_get_peers(info_hash)):
+		log.critical('add_peer-get: %s -> info_hash result #%d: %r' % (dht_id, idx, peer))
+	for idx, peer in enumerate(dhts[dht_id].dht_announce_peer(info_hash)):
+		log.critical('add_peer-announce: %s -> info_hash result #%d' % (dht_id, idx))
+
+def peer_info(dht_id=None):
+	if dht_id is not None:
+		return {dhts[dht_id]._node.connection: dhts[nid]._node.values}
+	peerlist={}
+	for [dht_id, dht] in dhts.items():
+		peerlist.update({dht_id: {dht._node.connection: dht._node.values}})
+	return peerlist
+
+def hash_info():
+	infolist={}
+	for [dht_id, dht] in dhts.items():
+		for infohash, routes in dht._node.values.items():
+                        s=set(routes)
+                        infolist.setdefault(infohash, [])
+                        ns=set(infolist[infohash])
+                        infolist.update({infohash: s.union(ns)})
+	return infolist
+
+def remove_dht(dht_id):
+	global dhts
+	dhts[dht_id].shutdown()
+	dhts[dht_id]._nodes.shutdown()
+	dhts.pop(dht_id)
+
+def stop_dht():
+	global dhts
+	terminate_infinite()
+	for dht_id, _ in list(dhts.items()):
+		remove_dht(dht_id)
+
+#
+# Primary classes DHT_Node, DHT_Router, and DHT
+#
 class DHT_Node(object):
 	def __init__(self, connection, id, version = None):
 		self.connection = (socket.gethostbyname(connection[0]), connection[1])
@@ -450,93 +549,6 @@ class DHT(object):
 			self._node.values[info_hash]=list(set(self._node.values[info_hash]))
 			send_krpc_reply(id = self._node.id)
 	_reply_handler[b'announce_peer'] = _announce_peer
-
-#####
-
-dhts = dict()
-dht_id_root=10000
-local_ip = socket.gethostbyname(socket.gethostname())
-bootstrap_connection = (local_ip, dht_id_root)
-# bootstrap_connection = ('router.bittorrent.com', 6881)
-
-uih1510 = binascii.unhexlify('ae3fa25614b753118931373f8feae64f3c75f5cd') # Ubuntu 15.10 info hash
-uih2004 = binascii.unhexlify('1c137edac5a3e214cac17c1f7bffca3516143538') # Ubuntu 20.04 info hash
-uih2110 = binascii.unhexlify('2cbc3e5cd85e9ca69e8da0845047adfea8bad4c1') # Ubuntu 21.10 info hash
-infohash_list=[uih1510, uih2004, uih2110]
-#import hashlib
-#info_hash = hashlib.sha1(b"Nobody inspects the spammish repetition").hexdigest()
-
-_infinite_on = False
-def infinite_sequence(start=0):
-	global _infinite_on
-	_infinite_on = False
-	num = start + 1
-	while not _infinite_on:
-		yield num
-		num += 1
-		if num > start + 10000: num = start + 1
-
-def terminate_infinite():
-	global _infinite_on
-	_infinite_on=True
-
-next_dht_id=infinite_sequence(dht_id_root)
-def get_next_id():
-	return next(next_dht_id)
-
-#####
-
-def add_dht(dht_id=None, user_setup={}):
-	global dhts
-	setup = {}
-	setup.update(user_setup)
-	if dht_id is None: dht_id = get_next_id()
-	log.critical('add_dht: %d, setup: %s' % (dht_id, setup))
-	router = DHT_Router('ttn' + str(dht_id), setup)
-	dhts.update({dht_id: DHT((local_ip, dht_id), bootstrap_connection, setup, router)})
-	return dht_id
-
-def get_peers(dht_id, info_hash):
-	peers = []
-	for idx, peer in enumerate(dhts[dht_id].dht_get_peers(info_hash)):
-		peers.append(peer)
-	return peers
-
-def add_peer(dht_id, info_hash):
-	for idx, peer in enumerate(dhts[dht_id].dht_get_peers(info_hash)):
-		log.critical('add_peer-get: %s -> info_hash result #%d: %r' % (dht_id, idx, peer))
-	for idx, peer in enumerate(dhts[dht_id].dht_announce_peer(info_hash)):
-		log.critical('add_peer-announce: %s -> info_hash result #%d' % (dht_id, idx))
-
-def peer_info(dht_id=None):
-	if dht_id is not None:
-		return {dhts[dht_id]._node.connection: dhts[nid]._node.values}
-	peerlist={}
-	for [dht_id, dht] in dhts.items():
-		peerlist.update({dht_id: {dht._node.connection: dht._node.values}})
-	return peerlist
-
-def hash_info():
-	infolist={}
-	for [dht_id, dht] in dhts.items():
-		for infohash, routes in dht._node.values.items():
-                        s=set(routes)
-                        infolist.setdefault(infohash, [])
-                        ns=set(infolist[infohash])
-                        infolist.update({infohash: s.union(ns)})
-	return infolist
-
-def remove_dht(dht_id):
-	global dhts
-	dhts[dht_id].shutdown()
-	dhts[dht_id]._nodes.shutdown()
-	dhts.pop(dht_id)
-
-def stop_dht():
-	global dhts
-	terminate_infinite()
-	for dht_id, _ in list(dhts.items()):
-		remove_dht(dht_id)
 
 # setup parameters
 #  router
