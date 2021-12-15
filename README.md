@@ -95,3 +95,13 @@ Packaging
 
 The directory structure is now organized to support packaging. The necessary configuration and setup
 files have also been added to perform packaging tasks.
+
+Use the following command to build a wheel for distribution during development (will use pypi for deployment).
+
+```
+python3 setup.py sdist bdist_wheel
+```
+Use the follow command to install the wheel in the virtual environment of the target app
+```
+pip install ../tinyBT/dist/tinyBT-0.0.6-py3-none-any.whl 
+```

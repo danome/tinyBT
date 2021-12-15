@@ -13,10 +13,7 @@ from docopt import docopt
 try:
     from _version import __version__
 except:
-    # for development purposes add module level to path
-    import os, sys
-    sys.path.append(os.getcwd() + '/tinyBT')
-    from _version import __version__
+    from tinyBT._version import __version__
 
 parsed_args = {}
 
@@ -26,5 +23,4 @@ def parse(args=None):
     return arguments
 
 if __name__ == '__main__':
-    print(sys.argv)
     print(parse())
