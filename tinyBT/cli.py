@@ -1,14 +1,13 @@
 """
-TTN DHT_Router.
+DHT Bootstrap Router.
 
-Usage: ttnrouter.py [--ip=<ip>]
+Usage: tinyBT.py [--ip=<ip>]
 
 Options:
   -h --help     Show this screen.
   --version     Show version.
-  --ip=<ip>     ip address to use for router address. [default: 127.0.0.1]
+  --ip=<ip>     ip address to use for router address.
 """
-import sys
 from docopt import docopt
 try:
     from _version import __version__

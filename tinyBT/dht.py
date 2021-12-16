@@ -65,8 +65,6 @@ def decode_id(node_id):
 
 dhts = dict()
 dht_id_root=10000
-local_ip = socket.gethostbyname(socket.gethostname())
-bootstrap_connection = (local_ip, dht_id_root)
 # bootstrap_connection = ('router.bittorrent.com', 6881)
 
 uih1510 = binascii.unhexlify('ae3fa25614b753118931373f8feae64f3c75f5cd') # Ubuntu 15.10 info hash
@@ -97,15 +95,20 @@ def get_next_id():
 #
 # public interface for dht module
 #
-def add_dht(dht_id=None, ip=local_ip, user_setup={}):
+def add_dht(dht_id=None, options=None, user_setup={}):
 	global dhts
 	setup = {}
 	setup.update(user_setup)
 	dht_id = get_next_id() if dht_id is None else dht_id
-	ip = local_ip if ip is None else ip
-	log.critical('add_dht: %d, ip: %s, setup: %s' % (dht_id, ip, setup))
+	if '--ip' not in options or options['--ip'] is None:
+		options.update({'--ip': socket.gethostbyname(socket.gethostname())})
+	if '--bootstrap' not in options or options['--bootstrap'] is None:
+		options.update({'--bootstrap': (options['--ip'], dht_id_root)})
+	elif not isinstance(options['--bootstrap'], (list, tuple)):
+		options.update({'--bootstrap': (options['--bootstrap'], dht_id_root)})
+	log.critical('add_dht: %d, ip: %s, setup: %s' % (dht_id, options['--ip'], setup))
 	router = DHT_Router('ttn' + str(dht_id), setup)
-	dhts.update({dht_id: DHT((ip, dht_id), bootstrap_connection, setup, router)})
+	dhts.update({dht_id: DHT((options['--ip'], dht_id), options['--bootstrap'], setup, router)})
 	return dht_id
 
 def get_peers(dht_id, info_hash):
@@ -563,7 +566,7 @@ class DHT(object):
 #   ping_timeout [_check_nodes] how long to wait for ping response
 #   discover_t	 [_discover_nodes] thread_interval random attempt to discover nodes (futile?)
 
-def test_dht(setup={}):
+def test_dht(options, setup={}):
 	global dhts
 	#
 	# Create a DHT swarm
@@ -573,7 +576,7 @@ def test_dht(setup={}):
 	node_count=5
 	hashes_count=10
 	for i in range(node_count):
-		nodes.append(add_dht(None, None, setup))
+		nodes.append(add_dht(None, options, setup))
 	for i in range(hashes_count):
 		peer=nodes[random.randint(0,node_count-1)]
 		random.shuffle(infohash_list)
@@ -598,15 +601,11 @@ def init_dht(options):
 
 def main(test=False, vargs=None):
 	options = parse(vargs)
-	#print(options)
-	if options['--ip']:
-		global local_ip, bootstrap_connection
-		local_ip = options['--ip']
-		bootstrap_connection = (local_ip, dht_id_root)
+	print(f'bootstrap node, version: %s, options: %s' % (__version__, options))
 	init_dht(options)
-	root=add_dht(dht_id_root, options['--ip'], default_setup) # create root dht
-	if test: test_dht(default_setup)
+	root=add_dht(dht_id_root, options, default_setup) # create root dht
+	if test: test_dht(options, default_setup)
 
 if __name__ == '__main__':
 	#print(sys.argv)
-	main(test=True) #, vargs=['--ip', '172.17.0.1']
+	main(test=True)
