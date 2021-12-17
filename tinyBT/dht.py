@@ -324,8 +324,9 @@ class DHT(object):
 		# Start maintainance threads
 		self._threads = ThreadManager(self._log.getChild('maintainance'))
 
-# Periodically ping nodes in the routing table
+		# Periodically ping nodes in the routing table
 		def _check_nodes(N, last_ping, timeout):
+			self._log.info(f'status peers: %s, hashes: %s' % (peer_info(), hash_info()))
 			def get_unpinged(n):
 				return time.time() - n.last_ping > last_ping
 			check_nodes = list(self._nodes.get_nodes(N, expression = get_unpinged))
