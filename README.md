@@ -100,11 +100,11 @@ Use the following command to build a wheel for distribution during development (
 
 ```
 python3 setup.py sdist bdist_wheel
-pip wheel --wheel-dir=wheelhouse dist/ttnrouter-0.0.2.tar.gz
+pip wheel --wheel-dir=wheelhouse dist/tinyBT-0.0.2.tar.gz
 ```
 
 Use the follow command to install the wheel in the virtual environment of the target app
 ```
-pip install --no-index --find-links=wheelhouse ttnrouter
+pip install --no-index --find-links=wheelhouse ttnBT
 ```
 #pip install ../tinyBT/dist/tinyBT-0.0.6-py3-none-any.whl
