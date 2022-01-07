@@ -92,7 +92,7 @@ next_dht_id=infinite_sequence(dht_id_root)
 def get_next_id():
 	return next(next_dht_id)
 
-#
+#####
 # public interface for dht module
 #
 def add_dht(dht_id=None, options=None, user_setup={}):
@@ -106,7 +106,7 @@ def add_dht(dht_id=None, options=None, user_setup={}):
 		options.update({'--bootstrap': (options['--ip'], dht_id_root)})
 	elif not isinstance(options['--bootstrap'], (list, tuple)):
 		options.update({'--bootstrap': (options['--bootstrap'], dht_id_root)})
-	log.critical('add_dht: %d, ip: %s, setup: %s' % (dht_id, options['--ip'], setup))
+	log.critical('add_dht: %d, options: %s, setup: %s' % (dht_id, options, setup))
 	router = DHT_Router('ttn' + str(dht_id), setup)
 	dhts.update({dht_id: DHT((options['--ip'], dht_id), options['--bootstrap'], setup, router)})
 	return dht_id
@@ -153,7 +153,7 @@ def stop_dht():
 	for dht_id, _ in list(dhts.items()):
 		remove_dht(dht_id)
 
-#
+#####
 # Primary classes DHT_Node, DHT_Router, and DHT
 #
 class DHT_Node(object):
@@ -551,6 +551,10 @@ class DHT(object):
 			send_krpc_reply(id = self._node.id)
 	_reply_handler[b'announce_peer'] = _announce_peer
 
+#####
+# testing and main functions
+#
+
 # setup parameters
 #  router
 #   report_t	 [_show_status] thread_interval to report status
@@ -594,19 +598,40 @@ default_setup = {'check_t': 3, 'check_N': 5, 'report_t': 30, 'redeem_t': 1200,
 def init_dht(options):
 	global next_dht_id
 	next_dht_id=infinite_sequence(dht_id_root)
-	logging.getLogger('DHT').setLevel(logging.INFO)
-	logging.getLogger('DHT_Router').setLevel(logging.INFO)
-	logging.getLogger('KRPCPeer').setLevel(logging.ERROR)
-	logging.getLogger('KRPCPeer.local').setLevel(logging.ERROR)
-	logging.getLogger('KRPCPeer.remote').setLevel(logging.ERROR)
+	if '-v' in options:
+		if options['-v'] == 0:
+			klog_level = logging.ERROR
+			dlog_level = logging.ERROR
+		elif options['-v'] == 1:
+			klog_level = logging.WARNING
+			dlog_level = logging.WARNING
+		elif options['-v'] == 2:
+			dlog_level = logging.INFO
+			klog_level = logging.WARNING
+		elif options['-v'] == 3:
+			dlog_level = logging.DEBUG
+			klog_level = logging.INFO
+		else:
+			klog_level = logging.DEBUG
+			dlog_level = logging.DEBUG
+	else:
+		klog_level = logging.ERROR
+		dlog_level = logging.ERROR
+	logging.getLogger('DHT').setLevel(dlog_level)
+	logging.getLogger('DHT_Router').setLevel(dlog_level)
+	logging.getLogger('KRPCPeer').setLevel(klog_level)
+	logging.getLogger('KRPCPeer.local').setLevel(klog_level)
+	logging.getLogger('KRPCPeer.remote').setLevel(klog_level)
 
 def main(test=False, vargs=None):
 	options = parse(vargs)
+	if '--test' in options:
+		test = options['--test']
 	print(f'bootstrap node, version: %s, options: %s' % (__version__, options))
 	init_dht(options)
 	root=add_dht(dht_id_root, options, default_setup) # create root dht
-	if test: test_dht(options, default_setup)
+	if test is True: test_dht(options, default_setup)
 
 if __name__ == '__main__':
 	#print(sys.argv)
-	main(test=True)
+	main(test=True, vargs=['-vvv', '--test'])

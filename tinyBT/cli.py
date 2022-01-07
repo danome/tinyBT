@@ -1,12 +1,14 @@
 """
 DHT Bootstrap Router.
 
-Usage: tinyBT.py [--ip=<ip>]
+Usage: tinyBT.py [--ip=<ip>][-v | -vv | -vvv][--test]
 
 Options:
-  -h --help     Show this screen.
-  --version     Show version.
-  --ip=<ip>     ip address to use for router address.
+  -h --help      Show this screen.
+  --version      Show version.
+  --ip=<ip>      ip address to use for router address.
+  -v             set level of logging output (can be used multiple times).
+  -t, --test     run quickie test
 """
 from docopt import docopt
 try:
