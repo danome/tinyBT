@@ -25,11 +25,11 @@ THE SOFTWARE.
 import socket, threading, logging
 
 try:
-        from bencode import bencode, bdecode, BTFailure
-        from utils   import client_version, AsyncResult, AsyncTimeout, encode_uint64, UDPSocket, ThreadManager
-except:
         from tinyBT.bencode import bencode, bdecode, BTFailure
         from tinyBT.utils   import client_version, AsyncResult, AsyncTimeout, encode_uint64, UDPSocket, ThreadManager
+except:
+        from bencode import bencode, bdecode, BTFailure
+        from utils   import client_version, AsyncResult, AsyncTimeout, encode_uint64, UDPSocket, ThreadManager
 
 krpc_version = bytes(client_version[0] + bytearray([client_version[1], client_version[2]]))
 

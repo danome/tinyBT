@@ -12,9 +12,9 @@ Options:
 """
 from docopt import docopt
 try:
-    from _version import __version__
-except:
     from tinyBT._version import __version__
+except:
+    from _version import __version__
 
 parsed_args = {}
 

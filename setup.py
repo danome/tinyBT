@@ -2,7 +2,5 @@
 
 from setuptools import setup
 
-setup(
-#    setup_requires=['setup.cfg'],
-#    setup_cfg=True
-)
+if __name__ == "__main__":
+    setup()

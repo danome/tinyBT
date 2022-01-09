@@ -1,6 +1,6 @@
 try:
-    from dht import main
-except:
     from tinyBT.dht import main
+except:
+    from dht import main
 
 main()

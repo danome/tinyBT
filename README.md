@@ -96,15 +96,22 @@ Packaging
 The directory structure is now organized to support packaging. The necessary configuration and setup
 files have also been added to perform packaging tasks.
 
-Use the following command to build a wheel for distribution during development (will use pypi for deployment).
-
+Use the following command to build a wheel for distribution.
 ```
-python3 setup.py sdist bdist_wheel
-pip wheel --wheel-dir=wheelhouse dist/tinyBT-0.0.2.tar.gz
+pip wheel --wheel-dir=wheelhouse .
 ```
 
-Use the follow command to install the wheel in the virtual environment of the target app
+Use the following command to install the wheel in local environment.
 ```
-pip install --no-index --find-links=wheelhouse ttnBT
+pip install --no-index --find-links=wheelhouse -r requirements.txt
 ```
-#pip install ../tinyBT/dist/tinyBT-0.0.6-py3-none-any.whl
+
+Share the `.whl` artifact from the `wheelhouse` directory with others via out-of-band method and then install in the target environment.
+```
+pip install tinyBT-0.0.12-py3-none-any.whl
+```
+
+The `requirements.txt` file contains all package dependendencies and their expected version numbers. They can be installed separately when needed, such as the first time in a fresh environment or when changing versions.
+```
+pip install -r requirements.txt
+```

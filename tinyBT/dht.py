@@ -25,19 +25,19 @@ THE SOFTWARE.
 import os, sys, time, socket, hashlib, hmac, threading, logging, random, inspect
 import binascii
 try:
-	from   bencode import bencode, bdecode
-	from   utils   import encode_nodes, decode_nodes, encode_ip, encode_uint32, decode_uint32, encode_connection, decode_connection, AsyncTimeout, start_thread, ThreadManager
-	from   krpc    import KRPCPeer, KRPCError
-	from   cli     import parse
-	from   crc32c  import crc32c
-	from   _version import __version__
-except:
 	from   tinyBT.bencode import bencode, bdecode
 	from   tinyBT.utils   import encode_nodes, decode_nodes, encode_ip, encode_uint32, decode_uint32, encode_connection, decode_connection, AsyncTimeout, start_thread, ThreadManager
 	from   tinyBT.krpc    import KRPCPeer, KRPCError
 	from   tinyBT.cli     import parse
 	from   tinyBT.crc32c  import crc32c
 	from   tinyBT._version import __version__
+except:
+	from   bencode import bencode, bdecode
+	from   utils   import encode_nodes, decode_nodes, encode_ip, encode_uint32, decode_uint32, encode_connection, decode_connection, AsyncTimeout, start_thread, ThreadManager
+	from   krpc    import KRPCPeer, KRPCError
+	from   cli     import parse
+	from   crc32c  import crc32c
+	from   _version import __version__
 
 logging.basicConfig()
 log = logging.getLogger()

@@ -24,11 +24,11 @@ THE SOFTWARE.
 
 import sys, socket, random
 try:
-        from bencode import bdecode
-        from utils   import UDPSocket, decode_connection, encode_ip, encode_uint64, encode_uint32, encode_uint16
-except:
         from tinyBT.bencode import bdecode
         from tinyBT.utils   import UDPSocket, decode_connection, encode_ip, encode_uint64, encode_uint32, encode_uint16
+except:
+        from bencode import bdecode
+        from utils   import UDPSocket, decode_connection, encode_ip, encode_uint64, encode_uint32, encode_uint16
 
 class TrackerException(Exception):
 	pass
