@@ -64,7 +64,7 @@ def decode_id(node_id):
 #####
 
 dhts = dict()
-dht_id_root=10000
+dht_id_root=50105
 # bootstrap_connection = ('router.bittorrent.com', 6881)
 
 uih1510 = binascii.unhexlify('ae3fa25614b753118931373f8feae64f3c75f5cd') # Ubuntu 15.10 info hash
