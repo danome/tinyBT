@@ -9,13 +9,6 @@ except:
     from   cli	    import parse
     import _version as version
 
-logging.basicConfig(handlers=[logging.FileHandler("/tmp/ttn-bootstrap.log"),
-			      logging.StreamHandler()],
-		    format='[{asctime}]{levelname}:{message}',
-		    datefmt='%Y-%m-%d %H:%M:%S',
-		    level=logging.DEBUG,
-		    style='{')
-
 log = logging.getLogger(__name__)
 
 default_setup = {'check_t': 3, 'check_N': 5, 'report_t': 30, 'redeem_t': 1200,
@@ -24,13 +17,19 @@ default_setup = {'check_t': 3, 'check_N': 5, 'report_t': 30, 'redeem_t': 1200,
 	#{'report_t': 10, 'limit_t': 30, 'limit_N': 2000, 'redeem_t': 300, 'redeem_frac': 0.05}
 
 def main(test=False, vargs=None):
-	options = parse(vargs)
-	if '--test' in options:
-		test = options['--test']
-	log.info(f'bootstrap node, version: %s, options: %s' % (version.__version__, options))
-	dht.init_dht(options)
-	root=dht.add_dht(dht.dht_id_root, options, default_setup) # create root dht
-	if test is True: dht.test_dht(options, default_setup)
+    options = parse(vargs)
+    if options is not None and '--test' in options:
+        test = options['--test']
+    log.info(f'bootstrap node, version: %s, options: %s' % (version.__version__, options))
+    dht.init_dht(options)
+    root=dht.add_dht(dht.dht_id_root, options, default_setup) # create root dht
+    if test is True: dht.test_dht(options, default_setup)
 
 if __name__ == '__main__':
-	main(test=True, vargs=['-vvv', '--test'])
+    logging.basicConfig(handlers=[logging.FileHandler("/tmp/ttn-bootstrap.log"),
+                                  logging.StreamHandler()],
+                        format='[{asctime}]{levelname}:{message}',
+                        datefmt='%Y-%m-%d %H:%M:%S',
+                        level=logging.INFO,
+                        style='{')
+    main(test=True, vargs=['-vv', '--test'])
