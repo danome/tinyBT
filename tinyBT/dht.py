@@ -107,8 +107,7 @@ def add_dht(dht_id=None, options={}, user_setup={}):
 	log.critical('add_dht: %d, options: %s, setup: %s' % (dht_id, options, setup))
 	router = DHT_Router('ttn' + str(dht_id), setup)
 	dhts.update({dht_id: DHT(host_conn, bootstrap_conn, setup, router)})
-	options.update({'dht_id': dht_id})
-	return options
+	return dht_id
 
 def get_peers(dht_id, info_hash):
 	peers = []
