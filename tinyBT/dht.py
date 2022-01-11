@@ -89,7 +89,7 @@ def get_next_id():
 #####
 # public interface for dht module
 #
-def add_dht(dht_id=None, options=None, user_setup={}):
+def add_dht(dht_id=None, options={}, user_setup={}):
 	global dhts
 	setup = {}
 	setup.update(user_setup)
