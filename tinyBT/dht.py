@@ -93,16 +93,25 @@ def add_dht(dht_id=None, options=None, user_setup={}):
 	global dhts
 	setup = {}
 	setup.update(user_setup)
-	dht_id = get_next_id() if dht_id is None else dht_id
-	if '--ip' not in options or options['--ip'] is None:
-		options.update({'--ip': socket.gethostbyname(socket.gethostname())})
-	if '--bootstrap' not in options or options['--bootstrap'] is None:
-		options.update({'--bootstrap': (options['--ip'], dht_id_root)})
-	elif not isinstance(options['--bootstrap'], (list, tuple)):
-		options.update({'--bootstrap': (options['--bootstrap'], dht_id_root)})
+	if options is None or '--ip' not in options or options['--ip'] is None:
+		options.update({'--ip': (socket.gethostbyname(socket.gethostname()),
+					 get_next_id() if dht_id is None else dht_id)})
+	else:
+		options.update({'--ip':
+				(socket.gethostbyname(options['--ip']),
+				 get_next_id() if dht_id is None else dht_id)})
+	if options is None or '--bootstrap' not in options or options['--bootstrap'] is None:
+		options.update({'--bootstrap':
+				(socket.gethostbyname(options['--ip']),
+				 dht_id_root)})
+	else:
+		options.update({'--bootstrap':
+				(socket.gethostbyname(options['--bootstrap']),
+				 dht_id_root)})
+
 	log.critical('add_dht: %d, options: %s, setup: %s' % (dht_id, options, setup))
 	router = DHT_Router('ttn' + str(dht_id), setup)
-	dhts.update({dht_id: DHT((options['--ip'], dht_id), options['--bootstrap'], setup, router)})
+	dhts.update({dht_id: DHT(options['--ip'], options['--bootstrap'], setup, router)})
 	return dht_id
 
 def get_peers(dht_id, info_hash):
@@ -587,19 +596,6 @@ def test_dht(options, setup={}):
 def init_dht(options):
 	global next_dht_id
 	next_dht_id=infinite_sequence(dht_id_root)
-	if '--bootstrap' not in options or options['--bootstrap'] is None:
-		options.update({'--bootstrap':
-				(socket.gethostbyname(options['--ip']),
-				 dht_id_root)})
-	elif isinstance(options['--bootstrap'], (list, tuple)):
-		options.update({'--bootstrap':
-				(socket.gethostbyname(options['--bootstrap'][0]),
-				 options['--bootstrap'][1])})
-	else:
-		options.update({'--bootstrap':
-				(socket.gethostbyname(options['--bootstrap']),
-				 dht_id_root)})
-
 	if '-v' in options:
 		if options['-v'] == 0:
 			klog_level = logging.CRITICAL
