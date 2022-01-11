@@ -93,26 +93,22 @@ def add_dht(dht_id=None, options={}, user_setup={}):
 	global dhts
 	setup = {}
 	setup.update(user_setup)
-	if options is None or '--ip' not in options or options['--ip'] is None:
-		options.update({'--ip': (socket.gethostbyname(socket.gethostname()),
-					 get_next_id() if dht_id is None else dht_id)})
+	dht_id = get_next_id() if dht_id is None else dht_id
+	if '--ip' not in options or options['--ip'] is None:
+		host_conn = (socket.gethostname(), dht_id)
 	else:
-		options.update({'--ip':
-				(socket.gethostbyname(options['--ip']),
-				 get_next_id() if dht_id is None else dht_id)})
-	if options is None or '--bootstrap' not in options or options['--bootstrap'] is None:
-		options.update({'--bootstrap':
-				(socket.gethostbyname(options['--ip']),
-				 dht_id_root)})
+		host_conn = (options['--ip'], dht_id)
+
+	if '--bootstrap' not in options or options['--bootstrap'] is None:
+		bootstrap_conn = (socket.gethostname(), dht_id_root)
 	else:
-		options.update({'--bootstrap':
-				(socket.gethostbyname(options['--bootstrap']),
-				 dht_id_root)})
+		bootstrap_conn = (options['--bootstrap'], dht_id_root)
 
 	log.critical('add_dht: %d, options: %s, setup: %s' % (dht_id, options, setup))
 	router = DHT_Router('ttn' + str(dht_id), setup)
-	dhts.update({dht_id: DHT(options['--ip'], options['--bootstrap'], setup, router)})
-	return dht_id
+	dhts.update({dht_id: DHT(host_conn, bootstrap_conn, setup, router)})
+	options.update({'dht_id': dht_id})
+	return options
 
 def get_peers(dht_id, info_hash):
 	peers = []
@@ -583,6 +579,7 @@ def test_dht(options, setup={}):
 	infohashes = []
 	node_count=5
 	hashes_count=10
+	add_dht(50105)
 	for i in range(node_count):
 		nodes.append(add_dht(None, options, setup))
 	for i in range(hashes_count):
@@ -623,8 +620,8 @@ def init_dht(options):
 	logging.getLogger('KRPCPeer').setLevel(klog_level)
 	logging.getLogger('KRPCPeer.local').setLevel(klog_level)
 	logging.getLogger('KRPCPeer.remote').setLevel(klog_level)
-#        return options
+	if '--test' in options: test_dht(options)
 
 if __name__ == '__main__':
-        init_dht({'--ip': 'google.com', '-v': 3})
+        init_dht({'-v': 3, '--test': True})
 #        init_dht({'--bootstrap': 'google.com', '-v': 3})
