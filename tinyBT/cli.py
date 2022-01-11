@@ -20,7 +20,6 @@ parsed_args = {}
 
 def parse(args=None):
     arguments = docopt(__doc__, argv=args, version=__version__)
-    parsed_args = arguments.copy()
     return arguments
 
 if __name__ == '__main__':

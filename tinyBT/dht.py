@@ -28,20 +28,14 @@ try:
 	from   tinyBT.bencode import bencode, bdecode
 	from   tinyBT.utils   import encode_nodes, decode_nodes, encode_ip, encode_uint32, decode_uint32, encode_connection, decode_connection, AsyncTimeout, start_thread, ThreadManager
 	from   tinyBT.krpc    import KRPCPeer, KRPCError
-	from   tinyBT.cli     import parse
 	from   tinyBT.crc32c  import crc32c
-	from   tinyBT._version import __version__
 except:
 	from   bencode import bencode, bdecode
 	from   utils   import encode_nodes, decode_nodes, encode_ip, encode_uint32, decode_uint32, encode_connection, decode_connection, AsyncTimeout, start_thread, ThreadManager
 	from   krpc    import KRPCPeer, KRPCError
-	from   cli     import parse
 	from   crc32c  import crc32c
-	from   _version import __version__
 
-logging.basicConfig()
-log = logging.getLogger()
-log.setLevel(logging.INFO)
+log = logging.getLogger('dht')
 
 # BEP #0042 - prefix is based on ip and last byte of the node id - 21 most significant bits must match
 #  * ip = ip address in string format eg. "127.0.0.1"
@@ -590,25 +584,36 @@ def test_dht(options, setup={}):
 	# for dht in dht_list: dht.shutdown()
 	return nodes, hashes_count
 
-default_setup = {'check_t': 3, 'check_N': 5, 'report_t': 30, 'redeem_t': 1200,
-		 'limit_t': 300, 'limit_N': 4, 'last_ping': 10, 'ping_timeout': 2}
-	#{'discover_t': 180, 'check_t': 30, 'check_N': 10, 'cleanup_timeout': 60, 'cleanup_interval: 10}
-	#{'report_t': 10, 'limit_t': 30, 'limit_N': 2000, 'redeem_t': 300, 'redeem_frac': 0.05}
-
 def init_dht(options):
 	global next_dht_id
 	next_dht_id=infinite_sequence(dht_id_root)
+	if '--bootstrap' not in options or options['--bootstrap'] is None:
+		options.update({'--bootstrap':
+				(socket.gethostbyname(options['--ip']),
+				 dht_id_root)})
+	elif isinstance(options['--bootstrap'], (list, tuple)):
+		options.update({'--bootstrap':
+				(socket.gethostbyname(options['--bootstrap'][0]),
+				 options['--bootstrap'][1])})
+	else:
+		options.update({'--bootstrap':
+				(socket.gethostbyname(options['--bootstrap']),
+				 dht_id_root)})
+
 	if '-v' in options:
 		if options['-v'] == 0:
+			klog_level = logging.CRITICAL
+			dlog_level = logging.CRITICAL
+		if options['-v'] == 1:
 			klog_level = logging.ERROR
 			dlog_level = logging.ERROR
-		elif options['-v'] == 1:
+		elif options['-v'] == 2:
 			klog_level = logging.WARNING
 			dlog_level = logging.WARNING
-		elif options['-v'] == 2:
+		elif options['-v'] == 3:
 			dlog_level = logging.INFO
 			klog_level = logging.WARNING
-		elif options['-v'] == 3:
+		elif options['-v'] == 4:
 			dlog_level = logging.DEBUG
 			klog_level = logging.INFO
 		else:
@@ -622,16 +627,8 @@ def init_dht(options):
 	logging.getLogger('KRPCPeer').setLevel(klog_level)
 	logging.getLogger('KRPCPeer.local').setLevel(klog_level)
 	logging.getLogger('KRPCPeer.remote').setLevel(klog_level)
-
-def main(test=False, vargs=None):
-	options = parse(vargs)
-	if '--test' in options:
-		test = options['--test']
-	print(f'bootstrap node, version: %s, options: %s' % (__version__, options))
-	init_dht(options)
-	root=add_dht(dht_id_root, options, default_setup) # create root dht
-	if test is True: test_dht(options, default_setup)
+#        return options
 
 if __name__ == '__main__':
-	#print(sys.argv)
-	main(test=True, vargs=['-vvv', '--test'])
+        init_dht({'--ip': 'google.com', '-v': 3})
+#        init_dht({'--bootstrap': 'google.com', '-v': 3})

@@ -31,6 +31,8 @@ except:
         from bencode import bencode, bdecode, BTFailure
         from utils   import client_version, AsyncResult, AsyncTimeout, encode_uint64, UDPSocket, ThreadManager
 
+log = logging.getLogger('krpc')
+
 krpc_version = bytes(client_version[0] + bytearray([client_version[1], client_version[2]]))
 
 class KRPCError(RuntimeError):
