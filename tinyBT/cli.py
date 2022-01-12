@@ -1,7 +1,7 @@
 """
 DHT Bootstrap Router.
 
-Usage: tinyBT.py [--ip=<ip>][-v | -vv | -vvv][--test]
+Usage: tinyBT.py [--ip=<ip>][-v | -vv | -vvv | -vvvv][--test]
 
 Options:
   -h --help      Show this screen.
@@ -11,6 +11,10 @@ Options:
   -t, --test     run quickie test
 """
 from docopt import docopt
+import logging
+
+log = logging.getLogger('cli')
+
 try:
     from tinyBT._version import __version__
 except:
@@ -23,4 +27,4 @@ def parse(args=None):
     return arguments
 
 if __name__ == '__main__':
-    print(parse())
+    log.critical(f'main %s' % parse())

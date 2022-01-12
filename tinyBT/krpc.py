@@ -31,7 +31,7 @@ except:
         from bencode import bencode, bdecode, BTFailure
         from utils   import client_version, AsyncResult, AsyncTimeout, encode_uint64, UDPSocket, ThreadManager
 
-log = logging.getLogger('krpc')
+log = logging.getLogger(__name__)
 
 krpc_version = bytes(client_version[0] + bytearray([client_version[1], client_version[2]]))
 
@@ -46,7 +46,7 @@ class KRPCPeer(object):
 			send_krpc_response(**kwargs) is a function to send a reply,
 			rec contains the dictionary with the incoming message.
 		"""
-		self._log = logging.getLogger(self.__class__.__name__ + '.%s:%d' % connection)
+		self._log = log.getChild(f'%s:%d' % connection)
 		self._log_msg = self._log.getChild('msg') # message handling
 		self._log_local = self._log.getChild('local') # local queries
 		self._log_remote = self._log.getChild('remote') # remote queries
@@ -163,20 +163,19 @@ class KRPCPeer(object):
 
 if __name__ == '__main__':
 	logging.basicConfig()
-	logging.getLogger().setLevel(logging.DEBUG)
 	# Implement an echo message
 	peer = KRPCPeer(('0.0.0.0', 1111), handle_query = lambda send_krpc_response, rec, source_connection:
 		send_krpc_response(message = 'Hello %s!' % rec[b'a'][b'message']))
 	query = peer.send_krpc_query(('localhost', 1111), 'echo', message = 'World')
-	logging.getLogger().critical('result = %r' % query.get_result(2))
+	log.critical('result = %r' % query.get_result(2))
 	query1 = peer.send_krpc_query(('localhost', 1111), 'echo', message = 'World')
 	peer.shutdown()
 	query2 = peer.send_krpc_query(('localhost', 1111), 'echo', message = 'World')
 	try:
-		query1.get_result()
+		log.warn(query1.get_result())
 	except Exception:
-		logging.exception('expected query1 exception')
+		log.exception('expected query1 exception')
 	try:
-		query2.get_result()
+		log.info(query2.get_result())
 	except Exception:
-		logging.exception('expected query2 exception')
+		log.exception('expected query2 exception')

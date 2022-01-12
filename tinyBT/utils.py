@@ -24,6 +24,8 @@ THE SOFTWARE.
 
 import sys, select, socket, struct, threading, time, collections, logging
 
+log = logging.getLogger(__name__)
+
 client_version = (b'XK', 0, 0x01) # eXperimental Klient 0.0.1
 
 encode_ip = lambda value: socket.inet_aton(value)
@@ -149,7 +151,7 @@ class ThreadManager(object):
 
 class NetworkSocket(object):
 	def __init__(self, name):
-		self._log = logging.getLogger(self.__class__.__name__).getChild(name)
+		self._log = log.getChild(self.__class__.__name__).getChild(name)
 		self._threads = ThreadManager(self._log)
 		self._lock = threading.Lock()
 

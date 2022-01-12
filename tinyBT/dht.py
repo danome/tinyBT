@@ -35,7 +35,7 @@ except:
 	from   krpc    import KRPCPeer, KRPCError
 	from   crc32c  import crc32c
 
-log = logging.getLogger('dht')
+log = logging.getLogger(__name__)
 
 # BEP #0042 - prefix is based on ip and last byte of the node id - 21 most significant bits must match
 #  * ip = ip address in string format eg. "127.0.0.1"
@@ -180,7 +180,7 @@ class DHT_Router(object):
 		setup = {'report_t': 10, 'limit_t': 30, 'limit_N': 2000, 'redeem_t': 300, 'redeem_frac': 0.05}
 		setup.update(user_setup)
 		self._setup = setup
-		self._log = logging.getLogger(self.__class__.__name__ + '.%s' % name)
+		self._log = log.getChild(f'.%s' % name)
 
 		# This is our (trivial) routing table.
 		self._nodes = {}
@@ -291,7 +291,7 @@ class DHT(object):
 		setup.update(user_setup)
 		self._setup = setup
 
-		self._log = logging.getLogger(self.__class__.__name__ + '.%s.%d' % listen_connection)
+		self._log = log.getChild(f'%s.%d' % listen_connection)
 		self._log.info('Starting DHT node %s with bootstrap connection %s' % (listen_connection, bootstrap_connection))
 		listen_connection = (socket.gethostbyname(listen_connection[0]), listen_connection[1])
 		self._connection = listen_connection
@@ -592,35 +592,7 @@ def test_dht(options, setup={}):
 def init_dht(options):
 	global next_dht_id
 	next_dht_id=infinite_sequence(dht_id_root)
-	if '-v' in options:
-		if options['-v'] == 0:
-			klog_level = logging.CRITICAL
-			dlog_level = logging.CRITICAL
-		if options['-v'] == 1:
-			klog_level = logging.ERROR
-			dlog_level = logging.ERROR
-		elif options['-v'] == 2:
-			klog_level = logging.WARNING
-			dlog_level = logging.WARNING
-		elif options['-v'] == 3:
-			dlog_level = logging.INFO
-			klog_level = logging.WARNING
-		elif options['-v'] == 4:
-			dlog_level = logging.DEBUG
-			klog_level = logging.INFO
-		else:
-			klog_level = logging.DEBUG
-			dlog_level = logging.DEBUG
-	else:
-		klog_level = logging.ERROR
-		dlog_level = logging.ERROR
-	logging.getLogger('DHT').setLevel(dlog_level)
-	logging.getLogger('DHT_Router').setLevel(dlog_level)
-	logging.getLogger('KRPCPeer').setLevel(klog_level)
-	logging.getLogger('KRPCPeer.local').setLevel(klog_level)
-	logging.getLogger('KRPCPeer.remote').setLevel(klog_level)
-	if '--test' in options: test_dht(options)
 
 if __name__ == '__main__':
         init_dht({'-v': 3, '--test': True})
-#        init_dht({'--bootstrap': 'google.com', '-v': 3})
+#        init_dht({'--ip': 'google.com', '-v': 3})
