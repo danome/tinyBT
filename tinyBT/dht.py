@@ -578,7 +578,8 @@ def test_dht(options, setup={}):
 	infohashes = []
 	node_count=5
 	hashes_count=10
-	add_dht(50105)
+	# create root dht
+	add_dht(dht_id_root, options, setup)
 	for i in range(node_count):
 		nodes.append(add_dht(None, options, setup))
 	for i in range(hashes_count):
