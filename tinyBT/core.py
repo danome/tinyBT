@@ -11,12 +11,6 @@ except:
 
 log = logging.getLogger(__name__)
 
-default_setup = {'check_t': 3, 'check_N': 5, 'report_t': 30, 'redeem_t': 1200,
-		 'limit_t': 300, 'limit_N': 4, 'last_ping': 10, 'ping_timeout': 2}
-	#{'discover_t': 180, 'check_t': 30, 'check_N': 10, 'cleanup_timeout': 60, 'cleanup_interval: 10}
-	#{'report_t': 10, 'limit_t': 30, 'limit_N': 2000, 'redeem_t': 300, 'redeem_frac': 0.05
-
-
 def set_log_levels(options):
     if '-v' in options:
         if options['-v'] == 0:
@@ -62,10 +56,11 @@ def main(vargs=None):
     log.info(f'version: %s, options: %s' % (version.__version__, options))
     dht.init_dht(options)
     if options is not None and '--test' in options and options['--test'] is True:
-        dht.test_dht(options, default_setup)
+        dht.test_dht(options)
     else:
-        dht.add_dht(dht.dht_id_root, options, default_setup)
+        dht.add_dht(dht.dht_id_root, options)
 
 if __name__ == '__main__':
-    main()    # vargs=['-vvv', '--test']
+    main()
+    #main(vargs=['-vvv', '--test'])
 

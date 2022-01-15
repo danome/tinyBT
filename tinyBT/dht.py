@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-import os, sys, time, socket, hashlib, hmac, threading, logging, random, inspect
+import copy, os, sys, time, socket, hashlib, hmac, threading, logging, random, inspect
 import binascii
 try:
 	from   tinyBT.bencode import bencode, bdecode
@@ -68,6 +68,36 @@ infohash_list=[uih1510, uih2004, uih2110]
 #import hashlib
 #info_hash = hashlib.sha1(b"Nobody inspects the spammish repetition").hexdigest()
 
+# timer and counter default values
+#['check_N', 'check_t', 'cleanup_interval', 'cleanup_timeout', 'discover_t', 'last_ping', 'limit_N', 'limit_t', 'ping_timeout', 'redeem_frac', 'redeem_t', 'report_t']
+
+# tuned values for TTNet
+default_setup = {'check_N': 5, 'check_t': 10,
+                 'limit_N': 4, 'limit_t': 300,
+                 'redeem_t': 1200, 'report_t': 30}
+#_default_setup = {'check_t': 3, 'check_N': 5, 'report_t': 30, 'redeem_t': 1200, 'limit_t': 300, 'limit_N': 4, 'last_ping': 10, 'ping_timeout': 2}
+#s_default_setup = dict(sorted(_default_setup.items()))
+
+# Original default values
+factory_defaults = {'check_N': 10, 'check_t': 30,
+                    'cleanup_interval': 10, 'cleanup_timeout': 60,
+                    'discover_t': 180, 'last_ping': 10,
+                    'limit_N': 2000, 'limit_t': 30, 'ping_timeout': 2,
+                    'redeem_frac': 0.05, 'redeem_t': 300,
+                    'report_t': 10}
+#_factory_defaults = {'discover_t': 180, 'check_t': 30, 'check_N': 10, 'cleanup_timeout': 60, 'cleanup_interval': 10, 'report_t': 10, 'limit_t': 30, 'limit_N': 2000, 'redeem_t': 300, 'redeem_frac': 0.05}
+#s_factory_defaults = dict(sorted(_factory_defaults.items()))
+
+#sorted(set(default_setup).difference(set(factory_defaults)))
+#sorted(set(factory_defaults).difference(set(default_setup)))
+
+#_my_setup = {'discover_t': 180, 'check_t': 30, 'check_N': 10, 'last_ping': 900, 'ping_timeout': 5, 'cleanup_timeout': 60, 'cleanup_interval': 10}
+#s_my_setup = dict(sorted(_my_setup.items()))
+#my_setup = {'check_N': 10, 'check_t': 30, 'cleanup_interval': 10, 'cleanup_timeout': 60, 'discover_t': 180, 'last_ping': 900, 'ping_timeout': 5}
+
+#####
+# get_next_id
+#
 _infinite_on = False
 def infinite_sequence(start=0):
 	global _infinite_on
@@ -77,6 +107,7 @@ def infinite_sequence(start=0):
 		yield num
 		num += 1
 		if num > start + 10000: num = start + 1
+                # try another if num is in use
 
 def terminate_infinite():
 	global _infinite_on
@@ -91,7 +122,7 @@ def get_next_id():
 #
 def add_dht(dht_id=None, options={}, user_setup={}):
 	global dhts
-	setup = {}
+	setup = copy.copy(default_setup)
 	setup.update(user_setup)
 	dht_id = get_next_id() if dht_id is None else dht_id
 	if '--ip' not in options or options['--ip'] is None:
@@ -178,7 +209,7 @@ class DHT_Node(object):
 class DHT_Router(object):
 	def __init__(self, name, user_setup = {}):
 		self._name = name
-		setup = {'report_t': 10, 'limit_t': 30, 'limit_N': 2000, 'redeem_t': 300, 'redeem_frac': 0.05}
+		setup = copy.copy(factory_defaults)
 		setup.update(user_setup)
 		self._setup = setup
 		self._log = log.getChild(f'.%s' % name)
@@ -287,8 +318,7 @@ class DHT(object):
 	def __init__(self, listen_connection, bootstrap_connection = ('router.bittorrent.com', 6881),
 			user_setup = {}, user_router = None):
 		""" Start DHT peer on given (host, port) and bootstrap connection to the DHT """
-		setup = {'discover_t': 180, 'check_t': 30, 'check_N': 10, 'last_ping': 900,
-			 'ping_timeout': 5, 'cleanup_timeout': 60, 'cleanup_interval': 10}
+		setup = copy.copy(factory_defaults)
 		setup.update(user_setup)
 		self._setup = setup
 
