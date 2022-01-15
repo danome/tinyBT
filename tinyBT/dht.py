@@ -123,11 +123,12 @@ def add_peer(dht_id, info_hash):
 
 def peer_info(dht_id=None):
 	if dht_id is not None:
-		return {dhts[dht_id]._node.connection: dhts[nid]._node.values}
-	peerlist={}
-	for [dht_id, dht] in dhts.items():
-		peerlist.update({dht_id: {dht._node.connection: dht._node.values}})
-	return peerlist
+		return {dhts[dht_id]._node.connection: dhts[dht_id]._node.values}
+	else:
+		peerlist={}
+		for [dht_id, dht] in dhts.items():
+			peerlist.update({dht_id: {dht._node.connection: dht._node.values}})
+		return peerlist
 
 def hash_info():
 	infolist={}
@@ -136,7 +137,7 @@ def hash_info():
                         s=set(routes)
                         infolist.setdefault(infohash, [])
                         ns=set(infolist[infohash])
-                        infolist.update({infohash: s.union(ns)})
+                        infolist.update({infohash: list(s.union(ns))})
 	return infolist
 
 def remove_dht(dht_id):

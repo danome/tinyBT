@@ -115,3 +115,16 @@ The `requirements.txt` file contains all package dependendencies and their expec
 ```
 pip install -r requirements.txt
 ```
+```
+peers: {50105: {('172.17.0.2', 50105):
+    {b'`\xca\x93Z\x8d\x9d\x81i\x9a\xd3T\xb7^\xe4\xa7\xd8I7\x16\xdb':
+        [('10.211.55.91', 50106),
+        ('10.211.55.91', 50107)],
+     b'\xab\xd9$\x07\xdc\x99\xa9\xceb\xc2\x16\n\xa4g\x95i\xe8\xb6IG':
+         [('10.211.55.91', 50108)]}}},
+hashes: {b'`\xca\x93Z\x8d\x9d\x81i\x9a\xd3T\xb7^\xe4\xa7\xd8I7\x16\xdb':
+    {('10.211.55.91', 50106),
+    ('10.211.55.91', 50107)},
+        b'\xab\xd9$\x07\xdc\x99\xa9\xceb\xc2\x16\n\xa4g\x95i\xe8\xb6IG':
+    {('10.211.55.91', 50108)}}
+```
