@@ -140,6 +140,12 @@ def add_dht(dht_id=None, options={}, user_setup={}):
 	dhts.update({dht_id: DHT(host_conn, bootstrap_conn, setup, router)})
 	return dht_id
 
+def get_dht(dht_id=None):
+        if dht_id is None:
+                return dhts
+        else:
+                return dhts[dht_id] if dht_id in dhts else None
+
 def get_peers(dht_id, info_hash):
 	peers = []
 	for idx, peer in enumerate(dhts[dht_id].dht_get_peers(info_hash)):
