@@ -609,14 +609,15 @@ class DHT(object):
 def test_dht(options, setup={}):
 	global dhts
 	#
-	# Create a DHT swarm
-	log.critical('creating swarm')
 	nodes=[]
 	infohashes = []
 	node_count=5
 	hashes_count=10
 	# create root dht
+	log.critical('add root')
 	add_dht(dht_id_root, options, setup)
+	# Create a DHT swarm
+	log.critical('create swarm')
 	for i in range(node_count):
 		nodes.append(add_dht(None, options, setup))
 	for i in range(hashes_count):
